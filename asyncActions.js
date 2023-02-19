@@ -1,5 +1,8 @@
+const axios = require("axios");
 const redux = require("redux");
 const createStore = redux.createStore;
+const applyMiddleware = redux.applyMiddleware;
+const thunkMiddleware = require("redux-thunk").default;
 
 initialState = {
   loading: false,
@@ -50,4 +53,31 @@ const reducer = (state = initialState, action) => {
   }
 };
 
-const store = createStore(reducer);
+// async action creator (returns a function instead of an action object)
+const fetchUsers = () =>
+  function (dispatch) {
+    dispatch(fetchUsersRequest()); // sets loading to true
+    axios
+      .get("https://jsonplaceholder.typicode.com/users")
+      .then((response) => {
+        // get the users list from response
+        const usersDataList = response.data;
+        const usersList = usersDataList.map((userDataObj) => userDataObj.name);
+        dispatch(fetchUsersSuccess(usersList));
+      })
+      .catch((error) => {
+        // error.message will give the api call error message
+        const errorMessage = error.message;
+        dispatch(fetchUsersFailure(errorMessage));
+      });
+  };
+
+const store = createStore(reducer, applyMiddleware(thunkMiddleware));
+const unsubscribe = store.subscribe(() => {
+  console.log("State was updated to: ", store.getState());
+});
+console.log("Initial state: ", store.getState());
+store.dispatch(fetchUsers());
+/* not unsubscribing here. (unsubscribing here will stop listening before the async updates complete)
+ The async dispatch calls would happen asynchronously 
+ and we want to be listening to these async state changes */
